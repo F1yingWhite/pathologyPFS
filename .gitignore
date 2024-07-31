@@ -1,0 +1,5 @@
+data
+**/runs
+**/saved_models
+**/nohup.out
+**/__pycache__
