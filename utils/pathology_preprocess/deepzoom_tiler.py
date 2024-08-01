@@ -191,7 +191,7 @@ class DeepZoomStaticTiler(object):
             dz, basename, target_levels, MAG_BASE, self._format, associated, self._queue
         )
         tiler.run()
-
+        
     def _url_for(self, associated):
         if associated is None:
             base = VIEWER_SLIDE_NAME
