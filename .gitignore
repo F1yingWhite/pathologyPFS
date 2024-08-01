@@ -4,3 +4,4 @@ models
 **/saved_models
 **/nohup.out
 **/__pycache__
+**/WSI*

@@ -1,6 +1,6 @@
 import openslide
 
-path = "./data/SVS/Path/130445 1.svs"
+path = "./data/LBM_Path/Path/140195.mrxs"
 slide = openslide.open_slide(path)
 print(slide.level_count)
 print(slide.level_dimensions)
