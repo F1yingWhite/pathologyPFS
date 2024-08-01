@@ -308,11 +308,11 @@ if __name__ == '__main__':
         '-o',
         '--objective',
         type=float,
-        default=20,
-        help='The default objective power if metadata does not present [20]',
+        default=64,
+        help='The default objective power if metadata does not present [64]',
     )
     parser.add_argument(
-        '-t', '--background_t', type=int, default=30, help='Threshold for filtering background [15]'
+        '-t', '--background_t', type=int, default=15, help='Threshold for filtering background [15]'
     )
     args = parser.parse_args()
     levels = tuple(sorted(args.magnifications))

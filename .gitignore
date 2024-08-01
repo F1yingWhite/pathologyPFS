@@ -2,6 +2,7 @@ data
 models
 **/runs
 **/saved_models
+**/checkpoints
 **/nohup.out
 **/__pycache__
 **/WSI*

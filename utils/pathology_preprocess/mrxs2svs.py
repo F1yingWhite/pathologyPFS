@@ -290,5 +290,5 @@ if __name__ == "__main__":
 
     wsi_list = find_file(DATA_DIR, 1, suffix='.mrxs')
 
-    with multiprocessing.Pool(processes=1) as pool:
+    with multiprocessing.Pool(processes=2) as pool:
         list(tqdm(pool.imap(process_wsi_file, wsi_list), total=len(wsi_list)))
