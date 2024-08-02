@@ -1,12 +1,14 @@
 import os
-import torch
-import timm
 import warnings
-from torchvision import transforms
-from model.gigapath import slide_encoder
-from PIL import Image
+
 import numpy as np
+import timm
+import torch
+from PIL import Image
+from torchvision import transforms
+
 from dataset.pathology_dataset import PathologyTileDataset
+from model.gigapath import slide_encoder
 
 warnings.filterwarnings('ignore')
 
@@ -27,9 +29,9 @@ class Prov_encoder(torch.nn.Module):
 
 
 class Prov_decoder(torch.nn.Module):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.slide_encoder = slide_encoder.create_model("../checkpoints/pretrain/prov-gigapath/slide_encoder.pth", "gigapath_slide_enc12l768d", 1536)
+    def __init__(self, model_path: str = "../checkpoints/pretrain/prov-gigapath/slide_encoder.pth", model_name: str = "gigapath_slide_enc12l768d") -> None:
+        super(Prov_decoder, self).__init__()
+        self.slide_encoder = slide_encoder.create_model(model_path, model_name, 1536)
         self.slide_encoder = self.slide_encoder.half()  # Convert slide_encoder to half precision
 
     def forward(self, x, coords, all_layer_embed=False):

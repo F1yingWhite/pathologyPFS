@@ -6,10 +6,11 @@ import tqdm
 from torchvision import transforms
 
 from dataset.pathology_dataset import PathologyTileDataset
-from model.prov_path import Prov_encoder
+from model.prov_path import Prov_decoder, Prov_encoder
+from utils.get_pt import read_coordinate_pt
 
 
-def main():
+def compute_tile_feature():
     original_path = "./data/tile224/"
     target_path = "./data/tile224embedding"
     if not os.path.exists(target_path):
@@ -44,5 +45,22 @@ def main():
             torch.save(concatenated, os.path.join(target_path, os.path.basename(folder) + '.pt'))
 
 
+def compute_slide_embedding():
+    original_path = "./data/tile224embedding"
+    target_path = "./data/slide_level_embedding"
+    if not os.path.exists(target_path):
+        os.makedirs(target_path)
+    pt_list = glob.glob(os.path.join(original_path, '*.pt'))
+    decoder = Prov_decoder(model_path="./checkpoints/pretrain/prov-gigapath/slide_encoder.pth").half().to('cuda')
+    decoder.eval()
+    with torch.no_grad():
+        for pt in tqdm.tqdm(pt_list):
+            embeddings, coordinate = read_coordinate_pt(pt)
+            embeddings, coordinate = embeddings.half().unsqueeze(0).to('cuda'), coordinate.half().unsqueeze(0).to('cuda')
+            output = decoder(embeddings, coordinate)[0]
+            torch.save(output, os.path.join(target_path, os.path.basename(pt)))
+
+
 if __name__ == '__main__':
-    main()
+    # compute_tile_feature()
+    compute_slide_embedding()
