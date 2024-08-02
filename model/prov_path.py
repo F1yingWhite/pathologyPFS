@@ -6,6 +6,7 @@ from torchvision import transforms
 from gigapath import slide_encoder
 from PIL import Image
 import numpy as np
+from dataset.pathology_dataset import PathologyTileDataset
 
 warnings.filterwarnings('ignore')
 
@@ -36,25 +37,6 @@ class Prov_decoder(torch.nn.Module):
         return self.slide_encoder(x, coords, all_layer_embed)
 
 
-class TestDataSet(torch.utils.data.Dataset):
-    def __init__(self, img_path, transform):
-        self.img_list = []
-        self.coordinates_list = []
-        for i in os.listdir(img_path):
-            self.img_list.append(os.path.join(img_path, i))
-            i = i.split(".")[0]
-            self.coordinates_list.append([int(i.split("_")[0]), int(i.split("_")[1])])
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.img_list)
-
-    def __getitem__(self, index):
-        img = Image.open(self.img_list[index])
-        img = self.transform(img)
-        return img, self.coordinates_list[index]
-
-
 if __name__ == "__main__":
     torch.set_default_tensor_type(torch.cuda.HalfTensor)
     encoder = Prov_encoder().to("cuda").half()
@@ -67,7 +49,7 @@ if __name__ == "__main__":
             transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
         ]
     )
-    test_dataset = TestDataSet("../data/tile224/2011-38911", transform)
+    test_dataset = PathologyTileDataset("../data/tile224/2011-38911", transform)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=64, pin_memory=True, shuffle=False, num_workers=32, multiprocessing_context='spawn')
     coordinates_list = []
     img_embeddings = []
