@@ -1,8 +1,9 @@
+import os
+import warnings
+
 import timm
 import torch
-import os
 import torchsummary
-import warnings
 
 warnings.filterwarnings("ignore")
 

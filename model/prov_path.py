@@ -3,7 +3,7 @@ import torch
 import timm
 import warnings
 from torchvision import transforms
-from gigapath import slide_encoder
+from model.gigapath import slide_encoder
 from PIL import Image
 import numpy as np
 from dataset.pathology_dataset import PathologyTileDataset
