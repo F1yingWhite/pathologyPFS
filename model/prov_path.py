@@ -1,43 +1,24 @@
+import os
 import torch
 import timm
 import warnings
 from torchvision import transforms
 from gigapath import slide_encoder
+from PIL import Image
+import numpy as np
 
 warnings.filterwarnings('ignore')
 
 
-# 模型的transform
-# transform = transforms.Compose(
-#     [
-#         transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
-#         transforms.CenterCrop(224),
-#         transforms.ToTensor(),
-#         transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-#     ]
-# )
 class Prov_encoder(torch.nn.Module):
     def __init__(self, model_path="../checkpoints/pretrain/prov-gigapath/pytorch_model.bin"):
         super(Prov_encoder, self).__init__()
-        # 创建 ViT 模型
-        self.model = timm.create_model(
-            'vit_giant_patch14_dinov2',  # 指定模型架构
-            pretrained=False,  # 是否加载预训练权重
-            num_classes=0,  # 分类数目
-            img_size=224,  # 输入图像大小
-            in_chans=3,  # 输入通道数
-            patch_size=16,  # Patch 大小
-            embed_dim=1536,  # 嵌入维度
-            depth=40,  # Transformer 的深度
-            num_heads=24,  # 多头注意力机制的头数
-            mlp_ratio=5.33334,  # MLP 层的维度扩展比
-            global_pool='token',  # 全局池化方式
-            init_values=1e-05,  # 初始化值
-        )
-
+        self.model = timm.create_model("hf_hub:prov-gigapath/prov-gigapath", pretrained=False)
         self.model.load_state_dict(torch.load(model_path))
+        self.model = self.model.half()  # Convert model to half precision
 
     def forward(self, x):
+        x = x.half()  # Convert input to half precision
         return self.model(x)
 
     def get_shape(self):
@@ -48,23 +29,56 @@ class Prov_decoder(torch.nn.Module):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.slide_encoder = slide_encoder.create_model("../checkpoints/pretrain/prov-gigapath/slide_encoder.pth", "gigapath_slide_enc12l768d", 1536)
+        self.slide_encoder = self.slide_encoder.half()  # Convert slide_encoder to half precision
 
     def forward(self, x, coords, all_layer_embed=False):
-        """
-        The forward pass of the model
-
-        Arguments:
-        ----------
-        x: torch.Tensor
-            The input tile embeddings, of shape [N, L, D]
-        coords: torch.Tensor
-            The coordinates of the patches, of shape [N, L, 2]
-        all_layer_embed: bool
-            Whether to return embeddings from all layers or not
-        """
+        x = x.half()  # Convert input to half precision
         return self.slide_encoder(x, coords, all_layer_embed)
 
 
+class TestDataSet(torch.utils.data.Dataset):
+    def __init__(self, img_path, transform):
+        self.img_list = []
+        self.coordinates_list = []
+        for i in os.listdir(img_path):
+            self.img_list.append(os.path.join(img_path, i))
+            i = i.split(".")[0]
+            self.coordinates_list.append([int(i.split("_")[0]), int(i.split("_")[1])])
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.img_list)
+
+    def __getitem__(self, index):
+        img = Image.open(self.img_list[index])
+        img = self.transform(img)
+        return img, self.coordinates_list[index]
+
+
 if __name__ == "__main__":
-    encoder = Prov_encoder()
-    decoder = Prov_decoder()
+    torch.set_default_tensor_type(torch.cuda.HalfTensor)
+    encoder = Prov_encoder().to("cuda").half()
+    encoder.eval()
+    decoder = Prov_decoder().to("cuda").half()
+    decoder.eval()
+    transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        ]
+    )
+    test_dataset = TestDataSet("../data/tile224/2011-38911", transform)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=64, pin_memory=True, shuffle=False, num_workers=32, multiprocessing_context='spawn')
+    coordinates_list = []
+    img_embeddings = []
+    with torch.no_grad():
+        for img, coordinates in test_loader:
+            img = img.to("cuda").half()  # Ensure images are in half precision
+            coordinates_list.extend(coordinates)
+            img_embeddings.append(encoder(img).cpu().numpy())
+        coordinates_list = np.concatenate(coordinates_list, axis=0)
+        img_embeddings = np.concatenate(img_embeddings, axis=0)
+        coordinates_list = torch.from_numpy(coordinates_list).unsqueeze(0).to("cuda").half()  # Convert to half precision
+        img_embeddings = torch.from_numpy(img_embeddings).unsqueeze(0).to("cuda").half()  # Convert to half precision
+        output = decoder(img_embeddings, coordinates_list)
+        print(output)
