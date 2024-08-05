@@ -1,5 +1,7 @@
 import glob
 import os
+import shlex
+from re import L
 
 import torch
 import tqdm
@@ -68,6 +70,59 @@ def compute_slide_embedding():
             torch.save(output, os.path.join(target_path, os.path.basename(pt)))
 
 
+def remake_dir():
+    path = "./data/WSI/"
+    target_slide_level_path = "./data/slide_level_embedding"
+    for file in os.listdir(target_slide_level_path):
+        file = file[:-3]
+        print(file)
+        for pos in ["转移瘤2SVS", "转移瘤ES-SVS", "Path"]:
+            if glob.glob(os.path.join(path, pos, file + ".*")):
+                os.makedirs(os.path.join(target_slide_level_path, pos), exist_ok=True)
+                # 把文件拷贝到对应的文件夹
+                source = os.path.join(target_slide_level_path, file + ".pt")
+                destination = os.path.join(target_slide_level_path, pos)
+                os.system("cp {} {}".format(shlex.quote(source), shlex.quote(destination)))
+
+
+def name_format():
+    path1 = "./data/slide_level_embedding/转移瘤2SVS"
+    # 所有的名称去掉-前面的内容
+    for file in os.listdir(path1):
+        os.rename(os.path.join(path1, file), os.path.join(path1, file.split("-")[-1]))
+    # 删除文件名前缀的0
+    for file in os.listdir(path1):
+        new_name = file.lstrip('0')
+        os.rename(os.path.join(path1, file), os.path.join(path1, new_name))
+
+    path2 = "./data/slide_level_embedding/转移瘤ES-SVS"
+    for file in os.listdir(path2):
+        os.rename(os.path.join(path2, file), os.path.join(path2, file.split("-")[-1]))
+    # 删除文件名前缀的0
+    for file in os.listdir(path2):
+        new_name = file.lstrip('0')
+        os.rename(os.path.join(path2, file), os.path.join(path2, new_name))
+
+    path3 = "./data/slide_level_embedding/Path"
+
+    def process_filename(filename):
+        # 去掉文件扩展名
+        base_name, _ = os.path.splitext(filename)
+        # 如果存在'-'，则提取'-'前面的内容
+        if '-' in base_name:
+            base_name = base_name.split('-')[0].strip()
+        else:
+            base_name = base_name.split()[0]
+        # 返回处理后的内容
+        return base_name.replace(' ', '') + ".pt"
+
+    for file in os.listdir(path3):
+        new_name = process_filename(file)
+        os.rename(os.path.join(path3, file), os.path.join(path3, new_name))
+
+
 if __name__ == "__main__":
     compute_tile_feature()
     compute_slide_embedding()
+    remake_dir()
+    name_format()
