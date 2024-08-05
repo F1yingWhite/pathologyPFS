@@ -6,3 +6,4 @@ models
 **/nohup.out
 **/__pycache__
 **/WSI*
+logs

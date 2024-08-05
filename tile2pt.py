@@ -12,9 +12,7 @@ from model.prov_path import Prov_decoder, Prov_encoder
 from utils.get_pt import read_coordinate_pt
 
 
-def compute_tile_feature():
-    original_path = "./data/tile224/"
-    target_path = "./data/tile224embedding"
+def compute_tile_feature(original_path="./data/tile224/", target_path="./data/tile224embedding"):
     if not os.path.exists(target_path):
         os.makedirs(target_path)
     # 获得original_path下的所有文件夹
@@ -22,6 +20,8 @@ def compute_tile_feature():
     encoder = Prov_encoder(model_path="./checkpoints/pretrain/prov-gigapath/pytorch_model.bin").half().to("cuda")
     transform = transforms.Compose(
         [
+            transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
+            transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
         ]
@@ -35,7 +35,7 @@ def compute_tile_feature():
                 embeddings = []
                 coordinations = []
                 dataset = PathologyTileDataset(folder, transform=transform)
-                dataloader = torch.utils.data.DataLoader(dataset, batch_size=512, shuffle=False, num_workers=num_workers)
+                dataloader = torch.utils.data.DataLoader(dataset, batch_size=1024, shuffle=False, num_workers=num_workers)
                 for i, (image, coordination) in enumerate(dataloader):
                     image = image.half().to("cuda")
                     embedding = encoder(image)
@@ -54,9 +54,7 @@ def compute_tile_feature():
                 print("contine...")
 
 
-def compute_slide_embedding():
-    original_path = "./data/tile224embedding"
-    target_path = "./data/slide_level_embedding"
+def compute_slide_embedding(original_path="./data/tile224embedding", target_path="./data/slide224_level_embedding"):
     if not os.path.exists(target_path):
         os.makedirs(target_path)
     pt_list = glob.glob(os.path.join(original_path, "*.pt"))
@@ -70,9 +68,8 @@ def compute_slide_embedding():
             torch.save(output, os.path.join(target_path, os.path.basename(pt)))
 
 
-def remake_dir():
+def remake_dir(target_slide_level_path="./data/slide224_level_embedding"):
     path = "./data/WSI/"
-    target_slide_level_path = "./data/slide_level_embedding"
     for file in os.listdir(target_slide_level_path):
         file = file[:-3]
         print(file)
@@ -85,8 +82,8 @@ def remake_dir():
                 os.system("cp {} {}".format(shlex.quote(source), shlex.quote(destination)))
 
 
-def name_format():
-    path1 = "./data/slide_level_embedding/转移瘤2SVS"
+def name_format(prefix="./data/slide224_level_embedding/"):
+    path1 = os.path.join(prefix, "转移瘤2SVS")
     # 所有的名称去掉-前面的内容
     for file in os.listdir(path1):
         os.rename(os.path.join(path1, file), os.path.join(path1, file.split("-")[-1]))
@@ -95,7 +92,7 @@ def name_format():
         new_name = file.lstrip('0')
         os.rename(os.path.join(path1, file), os.path.join(path1, new_name))
 
-    path2 = "./data/slide_level_embedding/转移瘤ES-SVS"
+    path2 = os.path.join(prefix, "转移瘤ES-SVS")
     for file in os.listdir(path2):
         os.rename(os.path.join(path2, file), os.path.join(path2, file.split("-")[-1]))
     # 删除文件名前缀的0
@@ -103,7 +100,7 @@ def name_format():
         new_name = file.lstrip('0')
         os.rename(os.path.join(path2, file), os.path.join(path2, new_name))
 
-    path3 = "./data/slide_level_embedding/Path"
+    path3 = os.path.join(prefix, "Path")
 
     def process_filename(filename):
         # 去掉文件扩展名
@@ -122,7 +119,7 @@ def name_format():
 
 
 if __name__ == "__main__":
-    compute_tile_feature()
-    compute_slide_embedding()
-    remake_dir()
-    name_format()
+    compute_tile_feature("./data/tile256/", "./data/tile256embedding")
+    compute_slide_embedding("./data/tile256embedding", "./data/slide256_level_embedding")
+    remake_dir("./data/slide256_level_embedding")
+    name_format("./data/slide256_level_embedding")
