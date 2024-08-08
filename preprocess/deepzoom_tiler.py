@@ -1,19 +1,19 @@
-import json
-from multiprocessing import Process, JoinableQueue
 import argparse
+import glob
+import json
+import math
 import os
 import re
 import shutil
 import sys
-import glob
-import numpy as np
-import math
+from multiprocessing import JoinableQueue, Process
 from unicodedata import normalize
-from skimage import io
+
+import numpy as np
+from PIL import Image, ImageFilter, ImageStat
+from skimage import filters, io
 from skimage.color import rgb2hsv
 from skimage.util import img_as_ubyte
-from skimage import filters
-from PIL import Image, ImageFilter, ImageStat
 
 # python deepzoom_tiler.py -m 0 -b 20 -d [DATASET_NAME]
 # Set flag -m [LEVEL 1] [LEVEL 2] to crop patches from multiple magnifications.
@@ -21,7 +21,7 @@ from PIL import Image, ImageFilter, ImageStat
 Image.MAX_IMAGE_PIXELS = None
 
 import openslide
-from openslide import open_slide, ImageSlide
+from openslide import ImageSlide, open_slide
 from openslide.deepzoom import DeepZoomGenerator
 
 VIEWER_SLIDE_NAME = 'slide'
@@ -74,9 +74,7 @@ class TileWorker(Process):
             image = ImageSlide(self._slide.associated_images[associated])
         else:
             image = self._slide
-        return DeepZoomGenerator(
-            image, self._tile_size, self._overlap, limit_bounds=self._limit_bounds
-        )
+        return DeepZoomGenerator(image, self._tile_size, self._overlap, limit_bounds=self._limit_bounds)
 
 
 class DeepZoomImageTiler(object):
@@ -158,9 +156,7 @@ class DeepZoomStaticTiler(object):
         self._workers = workers
         self._dzi_data = {}
         for _i in range(workers):
-            TileWorker(
-                self._queue, slidepath, tile_size, overlap, limit_bounds, quality, threshold
-            ).start()
+            TileWorker(self._queue, slidepath, tile_size, overlap, limit_bounds, quality, threshold).start()
 
     def run(self):
         self._run_image()
@@ -174,24 +170,18 @@ class DeepZoomStaticTiler(object):
         else:
             image = ImageSlide(self._slide.associated_images[associated])
             basename = os.path.join(self._basename, self._slugify(associated))
-        dz = DeepZoomGenerator(
-            image, self._tile_size, self._overlap, limit_bounds=self._limit_bounds
-        )
+        dz = DeepZoomGenerator(image, self._tile_size, self._overlap, limit_bounds=self._limit_bounds)
 
         MAG_BASE = self._slide.properties.get(openslide.PROPERTY_NAME_OBJECTIVE_POWER)
         if MAG_BASE is None:
             MAG_BASE = self._objective
-        first_level = int(
-            math.log2(float(MAG_BASE) / self._base_mag)
-        )  # raw / input, 40/20=2, 40/40=0
+        first_level = int(math.log2(float(MAG_BASE) / self._base_mag))  # raw / input, 40/20=2, 40/40=0
         target_levels = [i + first_level for i in self._mag_levels]  # levels start from 0
         target_levels.reverse()
 
-        tiler = DeepZoomImageTiler(
-            dz, basename, target_levels, MAG_BASE, self._format, associated, self._queue
-        )
+        tiler = DeepZoomImageTiler(dz, basename, target_levels, MAG_BASE, self._format, associated, self._queue)
         tiler.run()
-        
+
     def _url_for(self, associated):
         if associated is None:
             base = VIEWER_SLIDE_NAME
@@ -249,11 +239,7 @@ def nested_patches(img_slide, out_base, level=(0,), ext='jpeg'):
             high_y_list = list(range(low_y * level_factor, (low_y + 1) * level_factor))
             for x_pos in high_x_list:
                 for y_pos in high_y_list:
-                    high_patch = glob.glob(
-                        os.path.join(
-                            'WSI_temp_files', str(levels[1]), '{}_{}.'.format(x_pos, y_pos) + ext
-                        )
-                    )
+                    high_patch = glob.glob(os.path.join('WSI_temp_files', str(levels[1]), '{}_{}.'.format(x_pos, y_pos) + ext))
                     if len(high_patch) != 0:
                         high_patch = high_patch[0]
                         shutil.move(
@@ -273,21 +259,11 @@ if __name__ == '__main__':
     Image.MAX_IMAGE_PIXELS = None
     parser = argparse.ArgumentParser(description='Patch extraction for WSI')
     parser.add_argument('-d', '--dataset', type=str, default='TCGA-lung', help='Dataset name')
-    parser.add_argument(
-        '-e', '--overlap', type=int, default=0, help='Overlap of adjacent tiles [0]'
-    )
-    parser.add_argument(
-        '-f', '--format', type=str, default='jpeg', help='Image format for tiles [jpeg]'
-    )
-    parser.add_argument(
-        '-v', '--slide_format', type=str, default='svs', help='Image format for tiles [svs]'
-    )
-    parser.add_argument(
-        '-j', '--workers', type=int, default=20, help='Number of worker processes to start [20]'
-    )
-    parser.add_argument(
-        '-q', '--quality', type=int, default=90, help='JPEG compression quality [90]'
-    )
+    parser.add_argument('-e', '--overlap', type=int, default=0, help='Overlap of adjacent tiles [0]')
+    parser.add_argument('-f', '--format', type=str, default='jpeg', help='Image format for tiles [jpeg]')
+    parser.add_argument('-v', '--slide_format', type=str, default='svs', help='Image format for tiles [svs]')
+    parser.add_argument('-j', '--workers', type=int, default=20, help='Number of worker processes to start [20]')
+    parser.add_argument('-q', '--quality', type=int, default=90, help='JPEG compression quality [90]')
     parser.add_argument('-s', '--tile_size', type=int, default=224, help='Tile size [224]')
     parser.add_argument(
         '-b',
@@ -311,9 +287,7 @@ if __name__ == '__main__':
         default=64,
         help='The default objective power if metadata does not present [64]',
     )
-    parser.add_argument(
-        '-t', '--background_t', type=int, default=15, help='Threshold for filtering background [15]'
-    )
+    parser.add_argument('-t', '--background_t', type=int, default=15, help='Threshold for filtering background [15]')
     args = parser.parse_args()
     levels = tuple(sorted(args.magnifications))
     assert len(levels) <= 2, 'Only 1 or 2 magnifications are supported!'
@@ -322,9 +296,7 @@ if __name__ == '__main__':
         out_base = os.path.join('WSI', args.dataset, 'pyramid')
     else:
         out_base = os.path.join('WSI', args.dataset, 'single')
-    all_slides = glob.glob(os.path.join(path_base, '*/*.' + args.slide_format)) + glob.glob(
-        os.path.join(path_base, '*/*/*.' + args.slide_format)
-    )
+    all_slides = glob.glob(os.path.join(path_base, '*/*.' + args.slide_format)) + glob.glob(os.path.join(path_base, '*/*/*.' + args.slide_format))
 
     # pos-i_pos-j -> x, y
     for idx, c_slide in enumerate(all_slides):
