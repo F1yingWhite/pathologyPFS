@@ -3,6 +3,7 @@ from datetime import datetime
 
 import numpy as np
 import torch
+from sklearn.metrics import auc, roc_curve
 from torch.nn import CrossEntropyLoss
 from torch.utils.tensorboard import SummaryWriter
 
@@ -17,7 +18,7 @@ def main():
     model.train()
     # * config
     max_epoch = 1000
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     criterion = CrossEntropyLoss()
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epoch, eta_min=1e-6)
     current_time = datetime.now().strftime('%Y%m%d-%H%M%S')
@@ -46,18 +47,46 @@ def main():
         model.eval()
         total_loss = 0
         with torch.no_grad():
+            y_true = []
+            y_scores = []
+            total_loss = 0
+
             for i, (embedding, jinzhan) in enumerate(valid_loader):
                 embedding, jinzhan = embedding.to(device), jinzhan.to(device)
                 y_pred = model(embedding)
+
                 loss = criterion(y_pred, jinzhan)
-                total_loss += loss
+                total_loss += loss.item()
+
+                # 将标签和预测分数保存以用于计算ROC曲线
+                y_true.extend(jinzhan.cpu().numpy())
+                y_scores.extend(torch.softmax(y_pred, dim=1)[:, 1].cpu().numpy())  # 假设目标类是第1类
+
             total_loss /= len(valid_loader)
             writer.add_scalar("Loss/valid", total_loss, epoch)
             print(f"Epoch {epoch}, Valid Loss {total_loss}")
+
+            # 计算ROC曲线和AUC
+            fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+            roc_auc = auc(fpr, tpr)
+            writer.add_scalar("AUC/valid", roc_auc, epoch)
+
+            # 计算最佳阈值
+            youden_index = tpr - fpr
+            best_threshold = thresholds[np.argmax(youden_index)]
+            print(f"Best Threshold at Epoch {epoch}: {best_threshold}")
+
             if total_loss < best_valid_loss:
                 best_valid_loss = total_loss
-                torch.save(model.state_dict(), model_save_path)
-                print(f"Save model at epoch {epoch}")
+                torch.save(
+                    {
+                        'model_state_dict': model.state_dict(),
+                        'best_threshold': best_threshold,
+                    },
+                    model_save_path,
+                )
+                print(f"Save model and best threshold at epoch {epoch}")
+
         scheduler.step()
 
 
