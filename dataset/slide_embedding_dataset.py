@@ -17,12 +17,12 @@ warnings.filterwarnings("ignore")
 class SlideEmbeddingDataset(data.Dataset):
     def __init__(self, excel_path="../data/merge.xlsx", embedding_dir="../data/slide224_level_embedding/Path"):
         df = pd.read_excel(excel_path)
-        df = df[["病理id", "PFS", "是否进展"]].dropna()
+        df = df[["病理id", "OS", "是否进展"]].dropna()
         self.embedding_dir = embedding_dir
         self.embedding_list = []
         for index, row in df.iterrows():
             slide_id = row["病理id"]
-            pfs = row["PFS"]
+            pfs = row["OS"]
             if not os.path.exists(os.path.join(embedding_dir, f"{int(slide_id)}.pt")):
                 continue
             self.embedding_list.append((int(slide_id), pfs, row["是否进展"]))
