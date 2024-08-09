@@ -2,7 +2,9 @@ import glob
 import os
 import re
 import warnings
+from turtle import position
 
+import numpy as np
 import pandas as pd
 import torch
 import torch.utils.data as data
@@ -32,9 +34,46 @@ class TileEmbeddingDataset(data.Dataset):
     def __getitem__(self, index):
         embedding_path, pfs = self.embedding_list[index]
         embedding = torch.load(embedding_path)
-        return embedding.float(), torch.tensor(pfs).float()
+        output = embedding[:, :1536]
+        position = embedding[:, 1536:]
+        return output.float(), position.float(), torch.tensor(pfs).float()
+
+
+def collate_fn(batch):
+    embeddings, position, pfs = zip(*batch)
+    max_embedding_len = max(embedding.size(0) for embedding in embeddings)
+
+    padded_embeddings = torch.stack([torch.cat([embedding, torch.zeros(max_embedding_len - embedding.size(0), embedding.size(1))], dim=0) for embedding in embeddings])
+    position = torch.stack([torch.cat([pos, torch.zeros(max_embedding_len - pos.size(0), pos.size(1))], dim=0) for pos in position])
+    pfs = torch.tensor(pfs, dtype=torch.float)  # Assuming `pfs` are scalar float values
+    return padded_embeddings, position, pfs
+
+
+def get_tile_embedding_dataloader(excel_path="./data/merge.xlsx", embedding_dir="./data/tile224embedding", batch_size=32, split=[0.7, 0.15, 0.15], shuttle=[True, False, False]):
+    tile = TileEmbeddingDataset(excel_path, embedding_dir)
+    # Calculate dataset sizes
+    train_size = int(split[0] * len(tile))
+    valid_size = int(split[1] * len(tile))
+    test_size = len(tile) - train_size - valid_size
+    seed = 42
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+    # Split dataset
+    train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(tile, [train_size, valid_size, test_size])
+
+    print(f"训练集大小: {len(train_dataset)}")
+    print(f"测试集大小: {len(test_dataset)}")
+    print(f"验证集大小: {len(valid_dataset)}")
+
+    train_dataloader = data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    valid_dataloader = data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+    test_dataloader = data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+    return train_dataloader, valid_dataloader, test_dataloader
 
 
 if __name__ == "__main__":
-    tile = TileEmbeddingDataset()
-    print(len(tile))
+    dataset, _, _ = get_tile_embedding_dataloader("../data/merge.xlsx", "../data/tile224embedding", batch_size=32)
+    for i, (x, y, z) in enumerate(dataset):
+        print(x.shape, y.shape, z.shape)
+        break

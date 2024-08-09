@@ -1,0 +1,10 @@
+{
+    "exclude": [
+        "assets",
+        "./data",
+        "checkpoints",
+        ".idea",
+        "**/__pycache__",
+        "logs"
+    ]
+}
