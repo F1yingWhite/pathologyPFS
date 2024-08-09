@@ -18,7 +18,7 @@ def main():
     # * model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = MySurvivalPredictionModel(2048, 1, prov_decoder_path="./checkpoints/pretrain/prov-gigapath/slide_encoder.pth").to(device)
-    model = torch.nn.DataParallel(model)
+    model = torch.nn.DataParallel(model, device_ids=[0, 2])
     model.train()
     # * config
     max_epoch = 1000
@@ -29,26 +29,28 @@ def main():
     log_dir = f'logs/{current_time}'
     writer = SummaryWriter(log_dir)
     # * dataset
-    train_loader, valid_loader, test_loader = get_tile_embedding_dataloader(batch_size=4)
+    train_loader, valid_loader, test_loader = get_tile_embedding_dataloader(batch_size=2)
     # * train
     best_valid_loss = float("inf")
     for epoch in range(max_epoch):
         model.train()
-        for i, (embedding, position, pfs) in enumerate(train_loader):
-            embedding, position, pfs = embedding.to(device), position.to(device), pfs.to(device)
+        for i, (embedding, position, pfs, jinzhan) in enumerate(train_loader):
+            embedding, position, pfs, jinzhan = embedding.to(device), position.to(device), pfs.to(device), jinzhan.to(device)
             optimizer.zero_grad()
             y_pred = model(embedding, position)
-            loss = criterion(y_pred, pfs)
+            loss = criterion(y_pred, pfs, jinzhan)
             loss.backward()
             optimizer.step()
+            if i % 10 == 0:
+                print(f"Epoch {epoch}, Batch {i}, Loss {loss}")
             writer.add_scalar("Loss/train", loss, epoch * len(train_loader) + i)
         # * valid
         model.eval()
         with torch.no_grad():
-            for i, (embedding, pfs) in enumerate(valid_loader):
-                embedding, pfs = embedding.to(device), pfs.to(device)
+            for i, (embedding, pfs, jinzhan) in enumerate(valid_loader):
+                embedding, position, pfs, jinzhan = embedding.to(device), position.to(device), pfs.to(device), jinzhan.to(device)
                 y_pred = model(embedding)
-                loss = criterion(y_pred, pfs)
+                loss = criterion(y_pred, pfs, jinzhan)
                 writer.add_scalar("Loss/valid", loss, epoch * len(valid_loader) + i)
                 if loss < best_valid_loss:
                     best_valid_loss = loss

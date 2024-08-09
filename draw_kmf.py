@@ -1,24 +1,41 @@
 import matplotlib.pyplot as plt
-import numpy
+import numpy as np
 import pandas as pd
 from lifelines import KaplanMeierFitter
+from lifelines.statistics import logrank_test
 
-# Load the data
-path = "./data/merge.xlsx"
-df = pd.read_excel(path)
-# 需要的数据列为OS和status
-df = df[['PFS', 'status']].dropna()
+if __name__ == '__main__':
+    # 读取数据
+    data = pd.read_excel('./data/merge.xlsx')
+    data = data[["PFS", "是否进展"]]
+    data = data.dropna()
 
-# Kaplan-Meier生存曲线拟合
-kmf = KaplanMeierFitter()
-kmf.fit(durations=df['PFS'], event_observed=df['status'])
+    # 分为进展为1和进展为0两组
+    T1 = data.loc[data["是否进展"] == 1, "PFS"]
+    T2 = data.loc[data["是否进展"] == 0, "PFS"]
+    E1 = np.ones(len(T1))
+    E2 = np.ones(len(T2))
 
-# 绘制生存曲线
-plt.figure(figsize=(8, 6))
-kmf.plot_survival_function()
-plt.title('Kaplan-Meier Survival Curve')
-plt.xlabel('Duration')
-plt.ylabel('Survival Probability')
-plt.grid(True)
-# 保存到本地
-plt.savefig('./data/Kaplan-Meier Survival Curve.png')
+    # 创建Kaplan-Meier估计对象并绘制生存曲线
+    kmf = KaplanMeierFitter()
+    kmf.fit(T1, event_observed=E1, label='Progress')
+    ax = kmf.plot()
+
+    kmf.fit(T2, event_observed=E2, label='No Progress')
+    ax = kmf.plot(ax=ax)
+
+    # 进行log-rank检验
+    results = logrank_test(T1, T2, event_observed_A=E1, event_observed_B=E2)
+    p_value = results.p_value
+    print("Log-rank test p-value:", p_value)
+
+    # 在图像上添加p值
+    text_x_position = max(max(T1), max(T2)) * 0.7
+    text_y_position = 0.7
+    ax.text(text_x_position, text_y_position, f'p-value: {p_value:.4f}', fontsize=12, bbox=dict(facecolor='white', alpha=0.5))
+
+    # 保存图像
+    ax.figure.savefig('progress.png')
+
+    # 显示图像
+    plt.show()

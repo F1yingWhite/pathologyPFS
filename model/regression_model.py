@@ -14,7 +14,7 @@ class RegressionModel(nn.Module):
 
     def forward(self, x):
         out = self.fc1(x)
-        out = self.norm(out)
+        # out = self.norm(out)
         out = self.relu(out)
         out = self.fc2(out)
         return out
@@ -24,10 +24,10 @@ class MySurvivalPredictionModel(nn.Module):
     def __init__(self, hidden_size, output_size, prov_decoder_path="./checkpoints/pretrain/prov-gigapath/slide_encoder.pth"):
         super(MySurvivalPredictionModel, self).__init__()
         self.prov_decoder = Prov_decoder(model_path=prov_decoder_path).half()
-        self.regresson = RegressionModel(1536, hidden_size, output_size)
+        self.regresson = RegressionModel(768, hidden_size, output_size).half()
 
     def forward(self, x, position):
-        out = self.prov_decoder(x, position)
+        out = self.prov_decoder(x, position)[0]
         out = self.regresson(out)
         return out
 

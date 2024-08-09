@@ -1,21 +1,41 @@
-import torch
-import torch.nn as nn
-from pycox.models.loss import CoxPHLoss
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from lifelines import KaplanMeierFitter
+from lifelines.statistics import logrank_test
 
-# 示例用法
-if __name__ == "__main__":
-    # 假设有以下示例数据
-    risk_scores = torch.tensor([-0.5303, -0.3923, -0.0447], device='cpu', dtype=torch.float32)
-    events = torch.tensor([0, 0, 0], device='cpu', dtype=torch.float32)
-    durations = torch.tensor([27.8333, 137.2667, 18.1333], device='cpu', dtype=torch.float32)
-  # 事件发生时间或随访时间
+if __name__ == '__main__':
+    # 读取数据
+    data = pd.read_excel('./data/merge.xlsx')
+    data = data[["PFS", "是否进展"]]
+    data = data.dropna()
 
-    # 创建 CoxPHLoss 实例
-    coxph_loss = CoxPHLoss()
+    # 分为进展为1和进展为0两组
+    T1 = data.loc[data["是否进展"] == 1, "PFS"]
+    T2 = data.loc[data["是否进展"] == 0, "PFS"]
+    E1 = np.ones(len(T1))
+    E2 = np.ones(len(T2))
 
-    # 计算损失
-    try:
-        loss = coxph_loss(risk_scores, events, durations)
-        print(f"CoxPH Loss: {loss.item()}")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    # 创建Kaplan-Meier估计对象并绘制生存曲线
+    kmf = KaplanMeierFitter()
+    kmf.fit(T1, event_observed=E1, label='Progress')
+    ax = kmf.plot()
+
+    kmf.fit(T2, event_observed=E2, label='No Progress')
+    ax = kmf.plot(ax=ax)
+
+    # 进行log-rank检验
+    results = logrank_test(T1, T2, event_observed_A=E1, event_observed_B=E2)
+    p_value = results.p_value
+    print("Log-rank test p-value:", p_value)
+
+    # 在图像上添加p值
+    text_x_position = max(max(T1), max(T2)) * 0.7
+    text_y_position = 0.7
+    ax.text(text_x_position, text_y_position, f'p-value: {p_value:.4f}', fontsize=12, bbox=dict(facecolor='white', alpha=0.5))
+
+    # 保存图像
+    ax.figure.savefig('progress.png')
+
+    # 显示图像
+    plt.show()
