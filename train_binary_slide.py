@@ -33,11 +33,11 @@ def main():
     best_valid_loss = float("inf")
     for epoch in range(max_epoch):
         model.train()
-        for i, (embedding, jinzhan) in enumerate(train_loader):
-            embedding, jinzhan = embedding.to(device), jinzhan.to(device)
+        for i, (embedding, death) in enumerate(train_loader):
+            embedding, death = embedding.to(device), death.to(device)
             optimizer.zero_grad()
             y_pred = model(embedding)
-            loss = criterion(y_pred, jinzhan)
+            loss = criterion(y_pred, death)
             loss.backward()
             optimizer.step()
             if i % 10 == 0:
@@ -51,15 +51,15 @@ def main():
             y_scores = []
             total_loss = 0
 
-            for i, (embedding, jinzhan) in enumerate(valid_loader):
-                embedding, jinzhan = embedding.to(device), jinzhan.to(device)
+            for i, (embedding, death) in enumerate(valid_loader):
+                embedding, death = embedding.to(device), death.to(device)
                 y_pred = model(embedding)
 
-                loss = criterion(y_pred, jinzhan)
+                loss = criterion(y_pred, death)
                 total_loss += loss.item()
 
                 # 将标签和预测分数保存以用于计算ROC曲线
-                y_true.extend(jinzhan.cpu().numpy())
+                y_true.extend(death.cpu().numpy())
                 y_scores.extend(torch.softmax(y_pred, dim=1)[:, 1].cpu().numpy())  # 假设目标类是第1类
 
             total_loss /= len(valid_loader)

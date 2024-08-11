@@ -34,11 +34,11 @@ def main():
     best_valid_loss = float("inf")
     for epoch in range(max_epoch):
         model.train()
-        for i, (embedding, position, pfs, jinzhan) in enumerate(train_loader):
-            embedding, position, pfs, jinzhan = embedding.to(device), position.to(device), pfs.to(device), jinzhan.to(device)
+        for i, (embedding, position, pfs, death) in enumerate(train_loader):
+            embedding, position, pfs, death = embedding.to(device), position.to(device), pfs.to(device), death.to(device)
             optimizer.zero_grad()
             y_pred = model(embedding, position)
-            loss = criterion(y_pred, pfs, jinzhan)
+            loss = criterion(y_pred, pfs, death)
             loss.backward()
             optimizer.step()
             if i % 10 == 0:
@@ -47,10 +47,10 @@ def main():
         # * valid
         model.eval()
         with torch.no_grad():
-            for i, (embedding, pfs, jinzhan) in enumerate(valid_loader):
-                embedding, position, pfs, jinzhan = embedding.to(device), position.to(device), pfs.to(device), jinzhan.to(device)
+            for i, (embedding, pfs, death) in enumerate(valid_loader):
+                embedding, position, pfs, death = embedding.to(device), position.to(device), pfs.to(device), death.to(device)
                 y_pred = model(embedding)
-                loss = criterion(y_pred, pfs, jinzhan)
+                loss = criterion(y_pred, pfs, death)
                 writer.add_scalar("Loss/valid", loss, epoch * len(valid_loader) + i)
                 if loss < best_valid_loss:
                     best_valid_loss = loss
