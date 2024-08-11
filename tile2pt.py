@@ -1,8 +1,10 @@
 import glob
 import os
+import re
 import shlex
-from re import L
+import shutil
 
+import pandas as pd
 import torch
 import tqdm
 from torchvision import transforms
@@ -119,7 +121,17 @@ def name_format(prefix="./data/slide224_level_embedding/"):
 
 
 if __name__ == "__main__":
-    compute_tile_feature("./data/tile256/", "./data/tile256embedding")
-    compute_slide_embedding("./data/tile256embedding", "./data/slide256_level_embedding")
-    remake_dir("./data/slide256_level_embedding")
-    name_format("./data/slide256_level_embedding")
+    # compute_tile_feature("./data/tile256/", "./data/tile256embedding")
+    # compute_slide_embedding("./data/tile256embedding", "./data/slide256_level_embedding")
+    # remake_dir("./data/slide256_level_embedding")
+    # name_format("./data/slide256_level_embedding")
+    df = pd.read_excel("./data/merge.xlsx")
+    df = df[["病理id", "是否进展"]].dropna()
+    for index, row in df.iterrows():
+        slide_id = str(int(row["病理id"]))
+        matching_files = [f for f in os.listdir("./data/tile224") if re.search(slide_id, f)]
+        if matching_files:
+            label = row["是否进展"]
+            target_path = os.path.join(f"./data/tile224/{int(label)}", slide_id)
+            original_path = os.path.join("./data/tile224", matching_files[0])
+            shutil.move(original_path, target_path)

@@ -2,13 +2,11 @@ import os
 import warnings
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import torch
 import torch.utils.data as data
 from lifelines import KaplanMeierFitter
 from lifelines.statistics import logrank_test
-from PIL import Image
 from sklearn.cluster import KMeans
 
 warnings.filterwarnings("ignore")

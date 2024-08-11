@@ -69,18 +69,9 @@ def top1gating(
         mask1 = mask1 * nonpadding.unsqueeze(-1).to(mask1.dtype)
 
     # for logging (percent of tokens routed to each expert)
-    expert1_hist = (
-        100
-        * torch.histc(
-            (indices1_s.squeeze() + 1), bins=num_experts, min=1, max=num_experts
-        )
-        / num_tokens
-    )
+    expert1_hist = 100 * torch.histc((indices1_s.squeeze() + 1), bins=num_experts, min=1, max=num_experts) / num_tokens
     metadata["unused_expert1_count"] = (expert1_hist == 0).sum()
-    expert1_hist = (
-        torch.sort(expert1_hist, dim=0, descending=True).values
-        + torch.finfo(torch.float32).tiny
-    )
+    expert1_hist = torch.sort(expert1_hist, dim=0, descending=True).values + torch.finfo(torch.float32).tiny
 
     sample_count = max(math.ceil(num_experts * SAMPLE_FRACTION), 1)
     metadata["expert1_balance_top"] = expert1_hist[:sample_count].sum()
@@ -165,8 +156,6 @@ class Top1Gate(torch.nn.Module):
         moe_eval_capacity_token_fraction=EVAL_CAPACITY_TOKEN_FRACTION,
         use_xmoe=False,
     ) -> None:
-        # TODO: merge this to top2gate.py
-        #
         super().__init__()
 
         if not use_xmoe:
@@ -242,9 +231,7 @@ def one_hot(indices: torch.Tensor, num_classes: int, unsqueeze_indices=False) ->
     if unsqueeze_indices:
         indices = indices.unsqueeze(-1)
     assert indices.shape[-1] == 1, "last dimension of indices must be have size 1"
-    output = torch.zeros(
-        indices.shape[:-1] + (num_classes,), device=indices.device, dtype=indices.dtype
-    )
+    output = torch.zeros(indices.shape[:-1] + (num_classes,), device=indices.device, dtype=indices.dtype)
     output.scatter_(len(output.shape) - 1, indices, 1)
     return output
 
@@ -320,15 +307,11 @@ def top2gating(
         importance_scores = -1 * gates.max(dim=1)[0]
         sorted_mask1 = mask1[importance_scores.argsort(dim=0)]
         sorted_cumsum1 = fused_cumsum_sub_one(sorted_mask1) * sorted_mask1
-        importance_sorted_locations1 = sorted_cumsum1[
-            importance_scores.argsort(dim=0).argsort(dim=0)
-        ]
+        importance_sorted_locations1 = sorted_cumsum1[importance_scores.argsort(dim=0).argsort(dim=0)]
 
         sorted_mask2 = mask2[importance_scores.argsort(dim=0)]
         sorted_cumsum2 = fused_cumsum_sub_one(sorted_mask2) * sorted_mask2
-        importance_sorted_locations2 = sorted_cumsum2[
-            importance_scores.argsort(dim=0).argsort(dim=0)
-        ]
+        importance_sorted_locations2 = sorted_cumsum2[importance_scores.argsort(dim=0).argsort(dim=0)]
 
         importance_sorted_locations2 += torch.sum(mask1, dim=0, keepdim=True)
 
@@ -349,12 +332,8 @@ def top2gating(
     l_aux = l_aux * num_experts * num_experts
 
     # for logging purposes
-    metadata["overflow_expert1"] = (
-        100 * torch.sum(mask1 * torch.ge(locations1, capacity)) / torch.sum(mask1)
-    )
-    metadata["overflow_expert2"] = (
-        100 * torch.sum(mask2 * torch.ge(locations2, capacity)) / torch.sum(mask2)
-    )
+    metadata["overflow_expert1"] = 100 * torch.sum(mask1 * torch.ge(locations1, capacity)) / torch.sum(mask1)
+    metadata["overflow_expert2"] = 100 * torch.sum(mask2 * torch.ge(locations2, capacity)) / torch.sum(mask2)
 
     # Remove locations outside capacity from mask
     mask1_, mask2_ = mask1, mask2
@@ -362,31 +341,13 @@ def top2gating(
     mask2 = mask2 * torch.lt(locations2, capacity)
 
     # for logging (percent of tokens routed to each expert)
-    expert1_hist = (
-        100
-        * torch.histc(
-            (indices1_s.squeeze() + 1), bins=num_experts, min=1, max=num_experts
-        )
-        / num_tokens
-    )
+    expert1_hist = 100 * torch.histc((indices1_s.squeeze() + 1), bins=num_experts, min=1, max=num_experts) / num_tokens
     metadata["unused_expert1_count"] = (expert1_hist == 0).sum()
-    expert1_hist = (
-        torch.sort(expert1_hist, dim=0, descending=True).values
-        + torch.finfo(torch.float32).tiny
-    )
+    expert1_hist = torch.sort(expert1_hist, dim=0, descending=True).values + torch.finfo(torch.float32).tiny
 
-    expert2_hist = (
-        100
-        * torch.histc(
-            (indices2_s.squeeze() + 1), bins=num_experts, min=1, max=num_experts
-        )
-        / num_tokens
-    )
+    expert2_hist = 100 * torch.histc((indices2_s.squeeze() + 1), bins=num_experts, min=1, max=num_experts) / num_tokens
     metadata["unused_expert2_count"] = (expert2_hist == 0).sum()
-    expert2_hist = (
-        torch.sort(expert2_hist, dim=0, descending=True).values
-        + torch.finfo(torch.float32).tiny
-    )
+    expert2_hist = torch.sort(expert2_hist, dim=0, descending=True).values + torch.finfo(torch.float32).tiny
 
     sample_count = max(math.ceil(num_experts * SAMPLE_FRACTION), 1)
     metadata["expert1_balance_top"] = expert1_hist[:sample_count].sum()

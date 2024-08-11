@@ -25,8 +25,8 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     criterion = CoxPHLoss()
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epoch, eta_min=1e-6)
-    current_time = datetime.now().strftime('%Y%m%d-%H%M%S')
-    log_dir = f'logs/{current_time}'
+    current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_dir = f"logs/{current_time}"
     writer = SummaryWriter(log_dir)
     # * dataset
     train_loader, valid_loader, test_loader = get_tile_embedding_dataloader(batch_size=2)
